@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GPS Sport Cluster</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Noto+Sans+Thai:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0C0D0F;--panel:#16181C;--ink:#ECE8E1;--muted:#8D9097;--line:#2A2D33;--accent:#FF5A1F;--red:#E5372A;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#ECEAE6;--panel:#fff;--ink:#1A1B1E;--muted:#666A70;--line:#CFCBC4;color-scheme:light}}
+:root[data-theme="light"]{--bg:#ECEAE6;--panel:#fff;--ink:#1A1B1E;--muted:#666A70;--line:#CFCBC4;color-scheme:light}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans Thai",system-ui,sans-serif;line-height:1.5}
+main{max-width:480px;margin:0 auto;padding:14px}
+h1{font-size:17px;margin:2px 0 8px;font-weight:600}
+h2{font-size:15px;margin:18px 0 8px;font-weight:600}
+svg{display:block;width:100%;max-width:400px;margin:0 auto}
+.f{font-family:"Barlow Condensed","Arial Narrow",sans-serif}
+#speed{font-size:78px;font-weight:700;fill:var(--ink)}
+.over #speed{fill:var(--red)}.over #rim{stroke:var(--red)}
+.info{text-align:center;font-size:14px;color:var(--muted);min-height:21px}
+.row{display:flex;gap:8px;align-items:center;margin:10px 0}
+.row select{flex:1;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+button{padding:12px 10px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:600 15px "Noto Sans Thai",system-ui,sans-serif;cursor:pointer;flex:1}
+.chip{flex:none;padding:8px 12px;font-size:14px}
+button[aria-pressed="true"],button.primary{background:var(--accent);border-color:var(--accent);color:#111}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #F2B705;outline-offset:2px}
+.btns{display:flex;gap:8px;margin:8px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.stat span{display:block;font-size:13px;color:var(--muted)}
+.stat b{font-size:26px;font-weight:600}
+canvas{width:100%;height:170px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.set label{display:block;margin:10px 0 0;font-size:14px}
+.set output{float:right;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.trip{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.trip span{color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>GPS Sport Cluster</h1>
+
+<section id="cluster">
+<svg viewBox="0 0 300 300" role="img" aria-label="หน้าปัดรอบเครื่องและความเร็ว">
+  <circle id="rim" cx="150" cy="150" r="146" fill="var(--panel)" stroke="var(--line)" stroke-width="4"/>
+  <g id="ticks"></g>
+  <g id="needle"><line x1="150" y1="70" x2="150" y2="14" stroke="var(--accent)" stroke-width="5" stroke-linecap="round"/></g>
+  <circle cx="150" cy="150" r="5" fill="var(--accent)" opacity="0"/>
+  <text id="speed" class="f" x="150" y="172" text-anchor="middle">0</text>
+  <text id="unit" x="150" y="194" text-anchor="middle" font-size="13" fill="var(--muted)">กม./ชม.</text>
+  <text id="gear" class="f" x="150" y="226" text-anchor="middle" font-size="30" font-weight="700" fill="var(--accent)">N</text>
+  <text id="rpmTxt" class="f" x="150" y="250" text-anchor="middle" font-size="16" fill="var(--muted)">0 rpm</text>
+</svg>
+<div class="info" id="status">กดเริ่มเพื่อเปิด GPS</div>
+</section>
+
+<div class="chips" id="engines" role="group" aria-label="เลือกเสียงเครื่องยนต์"></div>
+<div class="btns">
+  <button id="snd" aria-pressed="false">เสียงเครื่อง: ปิด</button>
+  <button id="prev">ฟังตัวอย่าง</button>
+</div>
+
+<div class="btns">
+  <button class="primary" id="go">เริ่ม GPS</button>
+  <button id="unitBtn">ไมล์/ชม.</button>
+  <button id="reset">รีเซ็ต</button>
+</div>
+
+<div class="row">
+  <label for="limit">เตือนเมื่อเกิน</label>
+  <select id="limit"><option value="0">ปิด</option><option value="60">60</option><option value="80">80</option><option value="90" selected>90</option><option value="120">120</option></select>
+  <span id="limitUnit">กม./ชม.</span>
+</div>
+
+<div class="grid">
+  <div class="stat"><span>ความเร็วสูงสุด</span><b class="f" id="max">0</b></div>
+  <div class="stat"><span>ความเร็วเฉลี่ย</span><b class="f" id="avg">0</b></div>
+  <div class="stat"><span>ระยะทาง</span><b class="f" id="dist">0.00 กม.</b></div>
+  <div class="stat"><span>เวลาเดินทาง</span><b class="f" id="time">00:00:00</b></div>
+  <div class="stat"><span>ทิศทาง</span><b class="f" id="head">-</b></div>
+  <div class="stat"><span>ความแม่นยำ GPS</span><b class="f" id="acc">-</b></div>
+</div>
+
+<h2>เส้นทางการเดินทาง</h2>
+<canvas id="map" aria-label="เส้นทางที่เดินทางมา"></canvas>
+
+<details class="set" open>
+  <summary><b>ปรับแต่งเสียง</b></summary>
+  <div id="sliders"></div>
+</details>
+
+<h2>ประวัติการเดินทาง</h2>
+<div id="hist"></div>
+<div class="btns"><button id="clr">ล้างประวัติ</button></div>
+
+<p class="note">ค่าความเร็วเป็นค่าประมาณจาก GPS ของมือถือ ส่วนรอบเครื่องและเสียงเป็นการจำลองจากความเร็ว ไม่ได้อ่านจากเครื่องยนต์จริง ห้ามใช้งานขณะขับรถ ควรให้ผู้โดยสารดูแทน แผนที่แสดงเฉพาะเส้นทางที่วิ่งผ่าน เพราะหน้านี้โหลดภาพแผนที่จากภายนอกไม่ได้</p>
+</main>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)},KMH=3.6,MPH=2.23694,NS="http://www.w3.org/2000/svg";
+var E={
+ inline4:{n:"Sport Inline-4",cyl:4,w:["sawtooth","square","sawtooth"],mix:[.5,.3,.35],cut:5200,lump:.1,noise:.3,turbo:0},
+ v8:{n:"V8 Muscle",cyl:8,w:["sawtooth","square","triangle"],mix:[.5,.6,.2],cut:2400,lump:.9,noise:.35,turbo:0},
+ v6t:{n:"V6 Turbo",cyl:6,w:["sawtooth","triangle","sawtooth"],mix:[.45,.3,.35],cut:4200,lump:.25,noise:.4,turbo:1},
+ ev:{n:"Electric",cyl:0,w:["sine","triangle","sine"],mix:[.5,.1,.3],cut:9000,lump:0,noise:.04,turbo:0},
+ gtr:{n:"GT-R R35",cyl:6,w:["sawtooth","sine","triangle"],mix:[.55,.18,.1],cut:750,lump:.7,noise:.12,turbo:0,idle:700,max:7100,gears:[75,115,155,195,240,300]},
+ cold:{n:"Cold Start",cyl:4,w:["sawtooth","square","triangle"],mix:[.5,.55,.3],cut:1100,lump:1,noise:.2,turbo:0,idle:900,max:6000},
+ v10:{n:"V10 Supercar",cyl:10,w:["sawtooth","square","sawtooth"],mix:[.5,.35,.3],cut:2600,lump:.15,noise:.15,turbo:0,idle:1000,max:8700},
+ sbk:{n:"Superbike Dyno",cyl:4,w:["triangle","sine","sine"],mix:[.55,.05,.15],cut:650,lump:.5,noise:.35,turbo:0,idle:1300,max:14300,flat:1,lim:1,gears:[100,132,160,188,215,245]},
+ bike:{n:"Big Bike",cyl:4,w:["sawtooth","square","sawtooth"],mix:[.5,.2,.4],cut:3600,lump:.1,noise:.2,turbo:0,idle:1300,max:12500,gears:[40,62,85,110,140,175]},
+ single:{n:"Classic Single",cyl:1,w:["square","sawtooth","triangle"],mix:[.55,.4,.25],cut:1800,lump:1,noise:.25,turbo:0}
+};
+var DEF={inline4:[900,7500],v8:[800,6500],v6t:[850,7000],ev:[700,9000],single:[1000,6000]};
+for(var dk in DEF){E[dk].idle=DEF[dk][0];E[dk].max=DEF[dk][1]}
+var CFG=[["vol","ความดังเสียง",0,100,1,60,"%"],["idle","รอบเดินเบา",600,1500,50,900," rpm"],["max","รอบสูงสุด",4000,15000,250,7500," rpm"],["resp","ความไวในการตอบสนอง",1,10,1,6,""],["tone","โทนเสียง (ทุ้ม ↔ แหลม)",0,100,1,50,""],["thick","ความหนาของเสียง",0,100,1,50,""],["tex","พื้นผิวเสียง (ความหยาบ)",0,100,1,40,""]];
+var S={},eng="inline4",useMph=false,snd=false,pv=null,A=null,SH={},cs=null,cp=false;
+CFG.forEach(function(c){S[c[0]]=c[5]});
+try{var sv=JSON.parse(localStorage.getItem("gpsCfg")||"{}");Object.keys(S).forEach(function(k){if(typeof sv[k]==="number")S[k]=sv[k]});if(E[sv.eng])eng=sv.eng}catch(e){}
+function save(){try{S2=Object.assign({eng:eng},S);localStorage.setItem("gpsCfg",JSON.stringify(S2))}catch(e){}}
+var S2;
+function conv(ms){return ms*(useMph?MPH:KMH)}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function pad(n){return(n<10?"0":"")+n}
+function fmtT(s){s=Math.floor(s);return pad(Math.floor(s/3600))+":"+pad(Math.floor(s/60)%60)+":"+pad(s%60)}
+
+/* ---------- Dial ---------- */
+var M=8000;
+function pol(r,d){var a=d*Math.PI/180;return[150+r*Math.sin(a),150-r*Math.cos(a)]}
+function ang(rpm){return -135+270*rpm/M}
+function mk(tag,at,txt){var e=document.createElementNS(NS,tag);for(var k in at)e.setAttribute(k,at[k]);if(txt!=null)e.textContent=txt;return e}
+function buildDial(){
+  M=Math.ceil(S.max/1000)*1000;var g=$("ticks");g.innerHTML="";
+  var r0=S.max*.88,a=pol(128,ang(r0)),b=pol(128,ang(M));
+  g.appendChild(mk("path",{d:"M"+a[0]+" "+a[1]+" A128 128 0 0 1 "+b[0]+" "+b[1],fill:"none",stroke:"var(--red)","stroke-width":6,opacity:.9}));
+  for(var v=0;v<=M;v+=500){
+    var maj=v%1000===0,p1=pol(maj?112:118,ang(v)),p2=pol(124,ang(v)),red=v>=r0;
+    g.appendChild(mk("line",{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],stroke:red?"var(--red)":"var(--ink)","stroke-width":maj?2.5:1.2}));
+    if(maj){var t=pol(98,ang(v));g.appendChild(mk("text",{x:t[0],y:t[1]+5,"text-anchor":"middle","font-size":15,"class":"f",fill:red?"var(--red)":"var(--ink)"},v/1000))}
+  }
+}
+
+/* ---------- RPM model ---------- */
+var TOP=[38,65,96,132,173,221],gear="N",rpm=900,sp=0;
+function calcRpm(v){
+  if(eng==="ev"){gear="D";return S.idle+Math.min(1,v/160)*(S.max-S.idle)}
+  if(v<1){gear="N";return S.idle}
+  var T=E[eng].gears||TOP,g=0;while(g<5&&v>T[g]*.88)g++;gear=String(g+1);
+  return S.idle+(S.max-S.idle)*Math.min(1,v/T[g]);
+}
+
+/* ---------- Audio ---------- */
+function mkAudio(){
+  if(A){if(A.c.state==="suspended")A.c.resume();return true}
+  var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+  var c=new AC();A={c:c};
+  function osc(t){var o=c.createOscillator();o.type=t;o.start();return o}
+  A.o=[osc("sawtooth"),osc("square"),osc("sawtooth")];
+  A.bus=c.createGain();A.bus.gain.value=.7;
+  A.g=A.o.map(function(o){var g=c.createGain();o.connect(g);g.connect(A.bus);return g});
+  A.lfo=osc("sine");A.lg=c.createGain();A.lfo.connect(A.lg);A.lg.connect(A.bus.gain);
+  A.filt=c.createBiquadFilter();A.filt.type="lowpass";A.filt.Q.value=.5;A.bus.connect(A.filt);
+  var buf=c.createBuffer(1,c.sampleRate*2,c.sampleRate),d=buf.getChannelData(0);
+  for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  var ns=c.createBufferSource();ns.buffer=buf;ns.loop=true;ns.start();
+  A.nf=c.createBiquadFilter();A.nf.type="bandpass";A.nf.Q.value=.8;A.ng=c.createGain();
+  ns.connect(A.nf);A.nf.connect(A.ng);A.ng.connect(A.filt);
+  A.tb=osc("sine");A.tg=c.createGain();A.tg.gain.value=0;A.tb.connect(A.tg);
+  A.mg=c.createGain();A.mg.gain.value=0;A.filt.connect(A.mg);A.tg.connect(A.mg);
+  var cp=c.createDynamicsCompressor();A.mg.connect(cp);cp.connect(c.destination);
+  setWave();return true;
+}
+function setWave(){if(A)A.o.forEach(function(o,i){o.type=E[eng].w[i]})}
+function audioUpd(r,load){
+  if(!A)return;var t=A.c.currentTime,p=E[eng],on=snd||pv||(cs&&cp);
+  var f=p.cyl?r/60*p.cyl/2:120+r/S.max*1800,fc=f<1?1:f;while(fc<60)fc*=2;
+  A.o[0].frequency.setTargetAtTime(fc,t,.03);A.o[1].frequency.setTargetAtTime(fc/2,t,.03);A.o[2].frequency.setTargetAtTime(fc*2,t,.03);
+  A.g[0].gain.setTargetAtTime(p.mix[0],t,.05);
+  A.g[1].gain.setTargetAtTime(p.mix[1]*S.thick/50*1.6,t,.05);
+  A.g[2].gain.setTargetAtTime(p.mix[2]*(.4+S.tone/80)*.6,t,.05);
+  A.lfo.frequency.setTargetAtTime(Math.min(f,50),t,.03);
+  A.lg.gain.setTargetAtTime(p.lump*.3*Math.max(0,1-f/150),t,.05);
+  A.filt.frequency.setTargetAtTime(Math.min(16000,.55*p.cut*(.4+S.tone/55)*(p.flat?1:.6+r/S.max*1.2)),t,.05);
+  A.nf.frequency.setTargetAtTime(200+r*.15,t,.05);
+  A.ng.gain.setTargetAtTime(S.tex/100*p.noise*(.3+load)*.9,t,.05);
+  A.tb.frequency.setTargetAtTime(1200+r/S.max*3500,t,.05);
+  A.tg.gain.setTargetAtTime(p.turbo?.025*load*r/S.max*S.vol/50:0,t,.05);
+  var lm=p.lim&&r>S.max*.97,ch=lm&&((performance.now()*.014)%1<.4);
+  A.mg.gain.setTargetAtTime(on?S.vol/100*(.4+.45*load)*.7*(ch?.15:1):0,t,lm?.012:.06);
+}
+
+/* ---------- Render loop ---------- */
+var lastT=performance.now(),frame=0,ndl=$("needle");
+function loop(now){
+  var dt=Math.min(.1,(now-lastT)/1000),tgt;lastT=now;
+  if(pv){var x=(now-pv)/5000;if(x>=1){pv=null}else{tgt=S.idle+(S.max-S.idle)*Math.sin(Math.PI*x);gear="P"}}
+  if(!pv){tgt=calcRpm(sp*KMH);
+    if(cs){var ct=(now-cs)/1000;if(ct<1.4){tgt=150+ct*110;gear="N"}else tgt+=700*Math.exp(-(ct-1.4)/7);if(ct>(cp?10:40)){cs=null;cp=false}}}
+  if(sp<.3)tgt+=Math.sin(now/70)*7;
+  rpm+=(tgt-rpm)*(1-Math.pow(1-(.03+S.resp*.04),dt*60));
+  var load=clamp((tgt-rpm)/(S.max*.08),0,1)*.7+clamp(rpm/S.max,0,1)*.3;
+  ndl.setAttribute("transform","rotate("+ang(Math.min(rpm,M*1.02))+" 150 150)");
+  if((frame++&3)===0){$("rpmTxt").textContent=Math.round(rpm/10)*10+" rpm";$("gear").textContent=gear}
+  if((frame&1)===0)audioUpd(rpm,load);
+  requestAnimationFrame(loop);
+}
+document.addEventListener("visibilitychange",function(){if(!A)return;document.hidden?A.c.suspend():A.c.resume()});
+
+/* ---------- GPS ---------- */
+var watchId=null,wake=null,last=null,prev=0,s={max:0,dist:0,moveT:0,start:0,el:0,tick:null},track=[];
+function hav(a,b,c,d){var R=6371000,r=Math.PI/180,x=Math.sin((c-a)*r/2)*Math.sin((c-a)*r/2)+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)*Math.sin((d-b)*r/2);return 2*R*Math.asin(Math.sqrt(x))}
+function dir(h){if(h==null||isNaN(h))return"-";var n=["เหนือ","ตอ.ฉ.เหนือ","ตะวันออก","ตอ.ฉ.ใต้","ใต้","ตต.ฉ.ใต้","ตะวันตก","ตต.ฉ.เหนือ"];return n[Math.round(h/45)%8]+" "+Math.round(h)+"°"}
+function render(v){
+  sp=v;var c=conv(v),lim=+$("limit").value;
+  $("speed").textContent=Math.round(c);
+  $("cluster").classList.toggle("over",lim>0&&c>lim);
+  $("max").textContent=Math.round(conv(s.max));
+  $("avg").textContent=Math.round(conv(s.moveT>0?s.dist/s.moveT:0));
+  $("dist").textContent=(s.dist/1000*(useMph?.621371:1)).toFixed(2)+(useMph?" ไมล์":" กม.");
+}
+function onPos(p){
+  var c=p.coords;$("acc").textContent=Math.round(c.accuracy)+" ม.";$("head").textContent=dir(c.heading);
+  if(c.accuracy>50){$("status").textContent="สัญญาณ GPS อ่อน กำลังรอค่าที่แม่นขึ้น...";return}
+  $("status").textContent="GPS พร้อมใช้งาน";
+  var v=0,d=0,dt=0;
+  if(last){d=hav(last.a,last.o,c.latitude,c.longitude);dt=(p.timestamp-last.t)/1000}
+  if(c.speed!=null&&!isNaN(c.speed))v=c.speed;else if(dt>0)v=d/dt;
+  if(v*KMH<2)v=0;
+  var sm=v===0?0:prev*.5+v*.5;prev=sm;
+  if(last&&v>0&&d>=2){s.dist+=d;s.moveT+=dt}
+  if(sm>s.max)s.max=sm;
+  if(!last||d>=3){if(track.length<3000)track.push([c.latitude,c.longitude])}
+  last={a:c.latitude,o:c.longitude,t:p.timestamp};
+  render(sm);drawMap();
+}
+function onErr(e){
+  var m={1:"ไม่ได้รับอนุญาตใช้ตำแหน่ง ลองเปิดหน้านี้ในเบราว์เซอร์โดยตรง",2:"หาตำแหน่งไม่ได้ ลองออกไปที่โล่งหรือเปิด GPS",3:"GPS ตอบสนองช้า กำลังลองใหม่..."};
+  $("status").textContent=m[e.code]||"GPS ผิดพลาด";if(e.code===1)stop();
+}
+async function start(){
+  if(!navigator.geolocation){$("status").textContent="อุปกรณ์นี้ไม่รองรับ GPS ผ่านเบราว์เซอร์";return}
+  $("status").textContent="กำลังค้นหาสัญญาณ GPS...";
+  watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+  s.start=Date.now()-s.el*1000;
+  s.tick=setInterval(function(){s.el=(Date.now()-s.start)/1000;$("time").textContent=fmtT(s.el)},1000);
+  try{if(navigator.wakeLock)wake=await navigator.wakeLock.request("screen")}catch(e){}
+  $("go").textContent="หยุด GPS";
+}
+function stop(){
+  if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}
+  clearInterval(s.tick);try{if(wake){wake.release();wake=null}}catch(e){}
+  if(s.dist>=50)saveTrip();
+  last=null;prev=0;render(0);$("go").textContent="เริ่ม GPS";
+}
+function reset(){s.max=s.dist=s.moveT=s.el=0;s.start=Date.now();last=null;prev=0;track=[];$("time").textContent="00:00:00";render(0);drawMap()}
+
+/* ---------- Route trace ---------- */
+function drawMap(){
+  var cv=$("map"),dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+  if(!w)return;cv.width=w*dpr;cv.height=h*dpr;
+  var x=cv.getContext("2d"),st=getComputedStyle(document.documentElement);
+  x.scale(dpr,dpr);x.clearRect(0,0,w,h);
+  if(track.length<2){x.fillStyle=st.getPropertyValue("--muted");x.font="14px sans-serif";x.textAlign="center";x.fillText("เส้นทางจะแสดงเมื่อเริ่มเคลื่อนที่",w/2,h/2);return}
+  var la=track.map(function(p){return p[0]}),lo=track.map(function(p){return p[1]});
+  var a0=Math.min.apply(0,la),a1=Math.max.apply(0,la),o0=Math.min.apply(0,lo),o1=Math.max.apply(0,lo);
+  var k=Math.cos((a0+a1)/2*Math.PI/180),sw=Math.max((o1-o0)*k,1e-5),sh=Math.max(a1-a0,1e-5),m=18;
+  var sc=Math.min((w-2*m)/sw,(h-2*m)/sh),ox=(w-sw*sc)/2,oy=(h-sh*sc)/2;
+  function P(p){return[ox+(p[1]-o0)*k*sc,h-oy-(p[0]-a0)*sc]}
+  x.strokeStyle=st.getPropertyValue("--accent");x.lineWidth=3;x.lineJoin="round";x.beginPath();
+  track.forEach(function(p,i){var q=P(p);i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1])});x.stroke();
+  var e=P(track[track.length-1]);x.fillStyle=st.getPropertyValue("--ink");x.beginPath();x.arc(e[0],e[1],5,0,7);x.fill();
+}
+
+/* ---------- History ---------- */
+function getH(){try{return JSON.parse(localStorage.getItem("gpsTrips")||"[]")}catch(e){return[]}}
+function saveTrip(){
+  var h=getH();h.unshift({d:Date.now(),m:s.dist,x:s.max,a:s.moveT>0?s.dist/s.moveT:0,t:s.el});
+  try{localStorage.setItem("gpsTrips",JSON.stringify(h.slice(0,20)))}catch(e){}renderHist();
+}
+function renderHist(){
+  var h=getH(),el=$("hist");
+  if(!h.length){el.innerHTML='<div class="trip"><span>ยังไม่มีประวัติ จะบันทึกเมื่อกดหยุดและวิ่งเกิน 50 ม.</span></div>';return}
+  el.innerHTML=h.map(function(t){
+    var dt=new Date(t.d).toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
+    return '<div class="trip"><div>'+dt+'<br><span>'+fmtT(t.t)+'</span></div><div style="text-align:right">'+(t.m/1000*(useMph?.621371:1)).toFixed(2)+(useMph?" ไมล์":" กม.")+'<br><span>เฉลี่ย '+Math.round(conv(t.a))+' · สูงสุด '+Math.round(conv(t.x))+'</span></div></div>';
+  }).join("");
+}
+
+/* ---------- UI ---------- */
+Object.keys(E).forEach(function(k){
+  var b=document.createElement("button");b.className="chip";b.textContent=E[k].n;b.setAttribute("aria-pressed",k===eng);b.dataset.k=k;
+  b.onclick=function(){eng=k;var p=E[k];S.idle=p.idle;S.max=p.max;SH.idle();SH.max();buildDial();setWave();cp=false;cs=(k==="cold"&&snd)?performance.now():null;save();document.querySelectorAll(".chip").forEach(function(c){c.setAttribute("aria-pressed",c.dataset.k===eng)})};
+  $("engines").appendChild(b);
+});
+CFG.forEach(function(c){
+  var l=document.createElement("label"),o=document.createElement("output"),i=document.createElement("input");
+  i.type="range";i.min=c[2];i.max=c[3];i.step=c[4];i.value=S[c[0]];
+  function sh(){o.textContent=S[c[0]]+c[6];i.value=S[c[0]]}sh();SH[c[0]]=sh;
+  i.oninput=function(){S[c[0]]=+i.value;sh();if(c[0]==="max"||c[0]==="idle"){if(S.idle>S.max-1000){S.idle=S.max-1000}buildDial()}save()};
+  l.appendChild(document.createTextNode(c[1]));l.appendChild(o);l.appendChild(i);$("sliders").appendChild(l);
+});
+$("snd").onclick=function(){
+  if(!snd){if(!mkAudio()){$("status").textContent="เบราว์เซอร์นี้ไม่รองรับเสียง";return}}
+  snd=!snd;if(snd&&eng==="cold"){cs=performance.now();cp=false}this.setAttribute("aria-pressed",snd);this.textContent="เสียงเครื่อง: "+(snd?"เปิด":"ปิด");
+};
+$("prev").onclick=function(){if(!mkAudio()){$("status").textContent="เบราว์เซอร์นี้ไม่รองรับเสียง";return}if(eng==="cold"){cs=performance.now();cp=true}else pv=performance.now()};
+$("go").onclick=function(){watchId==null?start():stop()};
+$("reset").onclick=reset;
+$("clr").onclick=function(){try{localStorage.removeItem("gpsTrips")}catch(e){}renderHist()};
+$("unitBtn").onclick=function(){
+  useMph=!useMph;$("unit").textContent=useMph?"ไมล์/ชม.":"กม./ชม.";$("limitUnit").textContent=$("unit").textContent;
+  this.textContent=useMph?"กม./ชม.":"ไมล์/ชม.";render(sp);renderHist();
+};
+$("limit").onchange=function(){render(sp)};
+window.addEventListener("resize",drawMap);
+buildDial();renderHist();drawMap();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
